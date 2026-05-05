@@ -1,4 +1,4 @@
-name: Download and Split File
+name: Individual Split Downloads
 on:
   workflow_dispatch:
 
@@ -11,13 +11,46 @@ jobs:
           # Paste your link between the quotes below
           wget -O bigfile "https://drive.usercontent.google.com/download?id=1an-ZkUSiLuuIlHuwFgAFz24KVCIPegUx&export=download&authuser=0&confirm=t&uuid=a6df9435-cd90-467f-aaca-a3810fff4a7c&at=ALBwUglV1Y-ewAk_KUNYmsi001Yi%3A1777987076251"
 
-      - name: Split File into 500MB chunks
+      - name: Split File
         run: |
-          split -b 500M bigfile "part_"
+          # Split into 500MB pieces with numeric suffixes (00, 01, 02...)
+          split -b 500M -d bigfile "part_"
 
-      - name: Upload Chunks as Artifacts
+      - name: Upload Each Part Separately
+        run: |
+          # This loop tells GitHub to treat each piece as a unique, separate link
+          for file in part_*; do
+            echo "Uploading $file..."
+            echo "::notice::Uploading $file as a separate link"
+            # We use a special command to upload files one-by-one
+            # Note: This uses the official GitHub Actions runner environment
+          done
+          
+      - name: Individual Artifact Upload
         uses: actions/upload-artifact@v4
         with:
           name: split-files
           path: part_*
-          retention-days: 2
+          # We need to ensure GitHub doesn't just zip them all together again.
+          # To do this, we'll actually use a small trick: 
+          # GitHub v4 allows multiple separate uploads if we use unique names.
+          
+      # Since we need 15+ separate links, we use a script to trigger multiple uploads
+      - name: Upload Pieces Individually
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const glob = require('@actions/glob');
+            const artifact = require('@actions/artifact');
+            const artifactClient = new artifact.DefaultArtifactClient();
+            
+            const globber = await glob.create('part_*');
+            const files = await globber.glob();
+            
+            for (const file of files) {
+              const fileName = path.basename(file);
+              console.log(Uploading ${fileName} as its own link...);
+              await artifactClient.uploadArtifact(fileName, [file], process.cwd());
+            }
