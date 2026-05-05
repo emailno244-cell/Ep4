@@ -1,0 +1,23 @@
+name: Download and Split File
+on:
+  workflow_dispatch:
+
+jobs:
+  split-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download File
+        run: |
+          # Paste your link between the quotes below
+          wget -O bigfile "https://drive.usercontent.google.com/download?id=1an-ZkUSiLuuIlHuwFgAFz24KVCIPegUx&export=download&authuser=0&confirm=t&uuid=a6df9435-cd90-467f-aaca-a3810fff4a7c&at=ALBwUglV1Y-ewAk_KUNYmsi001Yi%3A1777987076251"
+
+      - name: Split File into 500MB chunks
+        run: |
+          split -b 500M bigfile "part_"
+
+      - name: Upload Chunks as Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: split-files
+          path: part_*
+          retention-days: 2
